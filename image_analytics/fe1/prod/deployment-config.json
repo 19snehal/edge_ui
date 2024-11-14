@@ -1,0 +1,17 @@
+{
+    "PRODUCT": "anima",
+    "SERVICE": "fe1",
+    "DEPLOY_VMS": [
+        "gcp-prod-anima-01"
+    ],
+    "RUNTIME_ARGS": [],
+    "ENV_VARS": [],
+    "GCP_SECRET_KEYS": [],
+    "KEYS_DIR": "/etc/pot/itdep/keys",
+    "PRODUCT_DIR": "/etc/pot/anima",
+    "SERVICE_DIR": "/etc/pot/anima/fe1",
+    "SERVICE_CONFIG_DIR": "/etc/pot/anima/fe1/config",
+    "APP_CONFIGS": [],
+    "DOCKER_COMPOSE_FILES": ["fe1/config/KO/docker-compose.prod.yml"],
+    "DOCKER_COMPOSE_DEPLOY_ARGS": ["-f fe1/config/KO/docker-compose.prod.yml"]
+}
