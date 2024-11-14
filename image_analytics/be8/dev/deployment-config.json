@@ -1,0 +1,21 @@
+{
+    "PRODUCT": "imana",
+    "SERVICE": "be8",
+    "DEPLOY_VMS": [
+        "gcp-dev-anima-01"
+    ],
+    "DEPENDS_ON": [],
+    "RUNTIME_ARGS": [],
+    "ENV_VARS": [],
+    "GCP_SECRET_KEYS": [
+        "pot-dev2-imana-be1_gcp-pot:2",
+        "gcp-dev2-pot-anima-restapi-secret:1"
+    ],
+    "KEYS_DIR": "/etc/pot/itdep/keys",
+    "PRODUCT_DIR": "/etc/pot/imana",
+    "SERVICE_DIR": "/etc/pot/imana/be8",
+    "SERVICE_CONFIG_DIR": "/etc/pot/imana/be8/config",
+    "APP_CONFIGS": [],
+    "DOCKER_COMPOSE_FILES": ["be8/config/compose-template.yml"],
+    "DOCKER_COMPOSE_DEPLOY_ARGS": ["-f be8/config/compose-template.yml"]
+}
