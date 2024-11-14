@@ -1,1 +1,21 @@
-{"APP_CONFIGS":[],"DEPENDS_ON":["any/config/GV"],"DEPLOY_VMS":["gcp-stag-pot-anima-03"],"DOCKER_COMPOSE_DEPLOY_ARGS":["-f be0/config/GV/docker-compose.prod.yml"],"DOCKER_COMPOSE_FILES":["be0/config/GV/docker-compose.prod.yml"],"ENV_VARS":[],"GCP_SECRET_KEYS":["gcp-stag-pot-anima-bec:1", "pot-stag2-gcp-anima-be1:1", "gcp-stag-pot-anima-restapi-secret:1"],"KEYS_DIR":"/etc/pot/itdep/keys","PRODUCT":"anima","PRODUCT_DIR":"/etc/pot/anima","RUNTIME_ARGS":[],"SERVICE":"be0","SERVICE_CONFIG_DIR":"/etc/pot/anima/be0/config","SERVICE_DIR":"/etc/pot/anima/be0"}
+{
+    "PRODUCT": "imana",
+    "SERVICE": "be9",
+    "DEPLOY_VMS": [
+        "gcp-dev-anima-01"
+    ],
+    "DEPENDS_ON": [],
+    "RUNTIME_ARGS": [],
+    "ENV_VARS": [],
+    "GCP_SECRET_KEYS": [
+        "pot-dev2-imana-be1_gcp-pot:2",
+        "gcp-dev2-pot-anima-restapi-secret:1"
+    ],
+    "KEYS_DIR": "/etc/pot/itdep/keys",
+    "PRODUCT_DIR": "/etc/pot/imana",
+    "SERVICE_DIR": "/etc/pot/imana/be9",
+    "SERVICE_CONFIG_DIR": "/etc/pot/imana/be9/config",
+    "APP_CONFIGS": [],
+    "DOCKER_COMPOSE_FILES": ["be9/config/compose-template.yml"],
+    "DOCKER_COMPOSE_DEPLOY_ARGS": ["-f be9/config/compose-template.yml"]
+}
