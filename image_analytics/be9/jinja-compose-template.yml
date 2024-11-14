@@ -1,303 +1,81 @@
-version: "3.9"
+version: "3.3"
 
 services:
-  dalog-images-processor:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/dalog-images-processor:2.3.0
-    container_name: container-dalog-images-processor
-    restart: always
-    ports:
-      - "3021:8080"
-    volumes:
-      - {{ MNT_FOLDER }}/{{ PLANT_CODE }}.IIoTLink.Output/{{ PLANT_CODE }}.IIoTLink.Dalog.Encrypted:/data/images_processor/image_files_dawi
-      - {{ MNT_FOLDER }}/{{ PLANT_CODE }}.IIoTLink.Output/{{ PLANT_CODE }}.IIoTLink.Dalog.Encrypted:/data/images_processor/image_files_gz
-      - {{ MNT_FOLDER }}/{{ PLANT_CODE }}.IIoTLink.Output/{{ PLANT_CODE }}.IIoTLink.Dalog.Raw:/data/images_processor/raw_data
-    command: ["--environment", "Development"]
-    user: "root"
-
-  microservice-holcim-univ-cor-c-mqtt-broker:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-univ-cor-c-mqtt-broker:3.1.0
-    container_name: container-holcim-univ-cor-c-mqtt-broker
-    restart: always
-    ports:
-      - $MQTT_LISTENER:1883
-      - $MQTT_WEBSOCKET:$MQTT_WEBSOCKET
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    networks:
-      - network-holcim
-
-  microservice-holcim-cf-cor-c-api-manager:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-api-manager:3.1.0
-    container_name: container-holcim-cf-cor-c-api-manager
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    ports:
-      - $API_MANAGER_PORT:$API_MANAGER_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-api-manager/log/.:/usr/src/app/log
-      - ./repo-holcim-cf-cor-c-api-manager/uploads/.:/usr/src/app/uploads
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-cf-cor-c-di01-backend:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-di01-backend:3.1.0
-    container_name: container-holcim-cf-cor-c-di01-backend
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    ports:
-      - $DI01_PORT:$DI01_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-di01-backend/log/.:/usr/src/app/log
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-cf-cor-c-dt01-backend:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-dt01-backend:3.1.0
-    container_name: container-holcim-cf-cor-c-dt01-backend
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    ports:
-      - $DT01_PORT:$DT01_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-dt01-backend/log/.:/usr/src/app/log
-      - $GOOGLE_APPLICATION_CREDENTIALS_PATH:/usr/src/app/config/gcpCred.json
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-cf-cor-c-fr01-frontend:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-fr01-frontend:3.1.0
-    container_name: container-holcim-cf-cor-c-fr01-frontend
-    restart: always
-    ports:
-      - $FR01_PORT:$FR01_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-fr01-frontend/.:/usr/src/app
-    networks:
-      - network-holcim
-
-  microservice-holcim-cf-cor-c-modbus-manager:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-modbus-manager:3.1.0
-    container_name: container-holcim-cf-cor-c-modbus-manager
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    ports:
-      - $MODBUS_MANAGER_PORT:$MODBUS_MANAGER_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-modbus-manager/log/.:/usr/src/app/log
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-cf-cor-c-mqtt-manager:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-mqtt-manager:3.1.0
-    container_name: container-holcim-cf-cor-c-mqtt-manager
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-mqtt-broker:
-        condition: service_started
-    ports:
-      - $MQTT_MANAGER_PORT:$MQTT_MANAGER_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-mqtt-manager/log/.:/usr/src/app/log
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-cf-cor-c-opcua-manager:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-opcua-manager:3.1.0
-    container_name: container-holcim-cf-cor-c-opcua-manager
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    ports:
-      - $OPCUA_MANAGER_PORT:$OPCUA_MANAGER_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-opcua-manager/log/.:/app/log/
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-cf-cor-c-opcua-server:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-opcua-server:3.1.0
-    container_name: container-holcim-cf-cor-c-opcua-server
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-    ports:
-      - $OPCUA_SERVER_PORT:$OPCUA_SERVER_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-opcua-server/log/.:/app/log/
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-univ-cor-c-cron-service:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-univ-cor-c-cron-service:3.1.0
-    container_name: container-holcim-univ-cor-c-cron-service
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-    ports:
-      - $CRON_SERVICE_PORT:$CRON_SERVICE_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    environment:
-      TZ: $TIMEZONE
-    volumes:
-      - $GOOGLE_APPLICATION_CREDENTIALS_PATH:/usr/src/app/config/gcpCred.json
-      - ./repo-holcim-univ-cor-c-cron-service/log/.:/usr/src/app/log
-      - $CSV_PATH:/usr/src/app/CsvFiles
-      - $CSV_PATH:/usr/src/app/newJSON
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-univ-cor-c-dm01-backend:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-univ-cor-c-dm01-backend:3.1.0
-    container_name: container-holcim-univ-cor-c-dm01-backend
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-db01-database:
-        condition: service_healthy
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    ports:
-      - $DM01_PORT:$DM01_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-univ-cor-c-dm01-backend/log/.:/usr/src/app/log
-      - $GOOGLE_APPLICATION_CREDENTIALS_PATH:/usr/src/app/config/gcpCred.json
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-univ-cor-c-message-broker:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-univ-cor-c-message-broker:3.1.0
-    container_name: container-holcim-univ-cor-c-message-broker
-    restart: always
-    ports:
-      - $RABBIT_MQ_LISTENER_TCP_PORT:$RABBIT_MQ_LISTENER_TCP_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    networks:
-      - network-holcim
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-
-  microservice-holcim-cf-cor-c-script-manager:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-cf-cor-c-script-manager:3.1.0
-    container_name: container-holcim-cf-cor-c-script-manager
-    restart: always
-    ports:
-      - $SCRIPT_PORT:$SCRIPT_PORT
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-cf-cor-c-script-manager/log/.:/usr/src/app/log
-      - ./repo-holcim-cf-cor-c-script-manager/log/.:/root/.pm2/logs
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-univ-cor-c-mqtt-high-frequency-service:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/repo-holcim-univ-cor-c-mqtt-high-frequency-service:3.1.0
-    container_name: container-holcim-univ-cor-c-mqtt-high-frequency-service
-    restart: always
-    ports:
-      - 3050:3050
-    env_file:
-      - {{ ENV_FILE_PATH }}
-    volumes:
-      - ./repo-holcim-univ-cor-c-mqtt-high-frequency-service/log/.:/usr/src/app/log
-      - $HIGH_FREQUENCY_OUTPUT_DIRECTORY:/app/telemetry
-    networks:
-      - network-holcim
-    links:
-      - microservice-holcim-univ-cor-c-db01-database
-
-  microservice-holcim-univ-cor-c-db01-database:
-    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-link-dok/postgres:14.12
-    container_name: container-holcim-univ-cor-c-db01-database
-    restart: always
-    depends_on:
-      microservice-holcim-univ-cor-c-message-broker:
-        condition: service_healthy
-    environment:
-      POSTGRES_USER: {{ MONGO_USERNAME }}
-      POSTGRES_PASSWORD: {{ MONGO_PASSWORD }}
-      POSTGRES_DB: {{ MONGO_DATABASE }}
-    ports:
-      - $DB01_PORT:5432
-    healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U admin -d holcimdb'"]
-      interval: 1s
-      timeout: 5s
-      retries: 10
-    volumes:
-      - ./repo-holcim-univ-cor-c-db01-database/.:/var/lib/postgresql/data
-    networks:
-      - network-holcim
-
-volumes:
-  holcim_dynamodb_data:
-
+    {% if ENVIRONMENT == "DEV" %}
+    pot-imana-rabbitmq-broker-{{ PLANT_CODE.lower() }}:
+    {% elif ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+    pot-anima-rabbitmq-broker-{{ PLANT_CODE.lower() }}:
+    {% endif %}
+        image: rabbitmq:3-management
+        {% if ENVIRONMENT == "DEV" %}
+        container_name: pot-imana-rabbitmq-broker-{{ PLANT_CODE.lower() }}
+        {% elif ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+        container_name: pot-anima-rabbitmq-broker-{{ PLANT_CODE.lower() }}
+        {% endif %}
+        hostname: rabbitmq-broker-{{ PLANT_CODE.lower() }}
+        restart: always
+        user: root
+        privileged: true
+        deploy:
+            replicas: 1
+        volumes:
+            - {{ SERVICE_CONFIG_DIR }}/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+            - {{ SERVICE_CONFIG_DIR }}/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+            - {{ SERVICE_CONFIG_DIR }}/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+        environment:
+            https_proxy: ${https_proxy}
+        networks:
+            - anima_network
+        healthcheck:
+            test: ["CMD", "rabbitmqctl", "list_connections"]
+    
+    {{ APPLICATION_SERVICE_NAME }}-{{ PLANT_CODE.lower() }}:
+        {% if ENVIRONMENT == "DEV" %}
+        image: europe-west1-docker.pkg.dev/pot-test-environment/pot-imana-dok/potimanabe9:dev-dev-pot-imana-first_0.0.52_2859d66
+        {% elif ENVIRONMENT == "STAG" %}
+        image: europe-west1-docker.pkg.dev/pot-test-environment/pot-anima-dok/potanimabe9:dev-MF20240521_0.0.533_c3b81da
+        {% elif ENVIRONMENT == "PROD" %}
+        image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-anima-dok/potanimabe9:main_0.0.536_e9678ab
+        {% endif %}
+        container_name: {{ APPLICATION_SERVICE_NAME }}-{{ PLANT_CODE.lower() }}
+        labels:
+            PLANT_CODE: {{ PLANT_CODE }}
+        restart: always
+        user: root
+        {% if ENVIRONMENT == "DEV" %}
+        depends_on:
+            pot-imana-rabbitmq-broker-{{ PLANT_CODE.lower() }}:
+                condition: service_healthy
+        {% elif ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+        depends_on:
+            pot-anima-rabbitmq-broker-{{ PLANT_CODE.lower() }}:
+                condition: service_healthy
+        {% endif %}
+        {% if ENVIRONMENT == "PROD" %}
+        volumes:
+            - {{ KEYS_DIR }}/pot-anima-{{ ENVIRONMENT.lower() }}:/srv/pot/anima/config/secrets/gcp_credential.json
+            - {{ KEYS_DIR }}/gcp-{{ ENVIRONMENT.lower() }}-pot-anima-restapi-secret:/srv/pot/anima/config/secrets/backend_apikey.json
+        {% elif ENVIRONMENT == "STAG" %}
+        volumes:
+            - {{ KEYS_DIR }}/gcp-{{ ENVIRONMENT.lower() }}-pot-anima-bec:/srv/pot/anima/config/secrets/gcp_credential.json
+            - {{ KEYS_DIR }}/gcp-{{ ENVIRONMENT.lower() }}-pot-anima-restapi-secret:/srv/pot/anima/config/secrets/backend_apikey.json
+        {% elif ENVIRONMENT == "DEV" %}
+        volumes:
+            - {{ KEYS_DIR }}/pot-{{ ENVIRONMENT.lower() }}2-imana-be1_gcp-pot:/srv/pot/imana/config/secrets/gcp_credential.json
+            - {{ KEYS_DIR }}/gcp-{{ ENVIRONMENT.lower() }}2-pot-anima-restapi-secret:/srv/pot/imana/config/secrets/backend_apikey.json
+        {% endif %}
+        command: ["celery", "-A", "src.worker:app", "worker", "-l", "info" ,"-Q", "data_capturing_queue", "--pool", "threads"]
+        environment:
+            APP_ENV: {{ ENVIRONMENT }}
+            APP_PLANT: {{ PLANT_CODE }}
+            https_proxy: ${https_proxy}
+            {% if ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+            GOOGLE_APPLICATION_CREDENTIALS: /srv/pot/anima/config/secrets/gcp_credential.json
+            {% elif ENVIRONMENT == "DEV" %}
+            GOOGLE_APPLICATION_CREDENTIALS: /srv/pot/imana/config/secrets/gcp_credential.json
+            {% endif %}
+        networks:
+            - anima_network
 networks:
-  network-holcim:
+    anima_network:
+        name: anima_network
