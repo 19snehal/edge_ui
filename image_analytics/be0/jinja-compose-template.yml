@@ -1,0 +1,91 @@
+version: "3.3"
+
+services:
+  {% if ENVIRONMENT == "DEV" %}
+  pot-imana-cloud-sql-proxy-{{ PLANT_CODE.lower() }}:
+  {% elif ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+  pot-anima-cloud-sql-proxy-{{ PLANT_CODE.lower() }}:
+  {% endif %}
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.9.0
+    {% if ENVIRONMENT == "DEV" %}
+    hostname: pot-imana-cloud-sql-proxy
+    container_name: pot-imana-cloud-sql-proxy-{{ PLANT_CODE.lower() }}
+    {% elif ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+    hostname: pot-anima-cloud-sql-proxy
+    container_name: pot-anima-cloud-sql-proxy-{{ PLANT_CODE.lower() }}
+    {% endif %}
+    restart: always
+    {% if ENVIRONMENT == "PROD" %}
+    volumes:
+      - {{ KEYS_DIR }}/pot-anima-prod:/srv/pot/anima/config/secrets/gcp_credential.json
+    {% elif ENVIRONMENT == "STAG" %}
+    volumes:
+      - {{ KEYS_DIR }}/gcp-stag-pot-anima-bec:/srv/pot/anima/config/secrets/gcp_credential.json
+    {% elif ENVIRONMENT == "DEV" %}
+    volumes:
+      - {{ KEYS_DIR }}/pot-dev2-imana-be1_gcp-pot:/srv/pot/imana/config/secrets/gcp_credential.json
+    {% endif %}
+    environment:
+      https_proxy: ${https_proxy}
+    networks:
+      - anima_network
+    {% if ENVIRONMENT == "DEV" %}
+    command: pot-test-environment:europe-west1:pot-stag2-vpc1-euw1-anima-pgsql1 --credentials-file=/srv/pot/anima/config/secrets/gcp_credential.json --address 0.0.0.0 --port 5432
+    {% elif ENVIRONMENT == "STAG" %}
+    command: plants-of-tomorrow-poc:europe-west1:pot-prod2-vpc1-euw1-anima-pgsql1 --credentials-file=/srv/pot/anima/config/secrets/gcp_credential.json --address 0.0.0.0 --port 5432
+    {% elif ENVIRONMENT == "PROD" %}
+    command: plants-of-tomorrow-poc:europe-west1:pot-dev2-vpc1-use1-pgsql1 --credentials-file=/srv/pot/imana/config/secrets/gcp_credential.json --address 0.0.0.0 --port 5432
+    {% endif %}
+  
+  {{ APPLICATION_SERVICE_NAME }}-{{ PLANT_CODE.lower() }}:
+    {% if ENVIRONMENT == "DEV" %}
+    image: europe-west1-docker.pkg.dev/pot-test-environment/pot-imana-dok/potimanabe0:dev-dev-pot-imana-first_0.0.52_2859d66
+    {% elif ENVIRONMENT == "STAG" %}
+    image: europe-west1-docker.pkg.dev/pot-test-environment/pot-anima-dok/potanimabe0:dev-MF20240521_0.0.521_6059aa9
+    {% elif ENVIRONMENT == "PROD" %}
+    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-anima-dok/potanimabe0:main_0.0.536_e9678ab
+    {% endif %}
+    container_name: {{ APPLICATION_SERVICE_NAME }}-{{ PLANT_CODE.lower() }}
+    labels:
+      PLANT_CODE: {{ PLANT_CODE }}  
+    restart: always
+    {% if ENVIRONMENT == "DEV" %}
+    depends_on:
+      pot-imana-cloud-sql-proxy-{{ PLANT_CODE.lower() }}:
+        condition: service_healthy
+    {% elif ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+    depends_on:
+      pot-anima-cloud-sql-proxy-{{ PLANT_CODE.lower() }}:
+        condition: service_healthy
+    {% endif %}
+    hostname: backend-api
+    {% if ENVIRONMENT == "PROD" %}
+    volumes:
+      - {{ KEYS_DIR }}/pot-anima-prod:/srv/pot/anima/config/secrets/gcp_credential.json
+      - {{ KEYS_DIR }}/pot-prod2-gcp-anima-be1:/srv/pot/anima/config/secrets/db_credential.json
+      - {{ KEYS_DIR }}/gcp-prod-pot-anima-restapi-secret:/srv/pot/anima/config/secrets/backend_apikey.json
+    {% elif ENVIRONMENT == "STAG" %}
+    volumes:
+      - {{ KEYS_DIR }}/gcp-stag-pot-anima-bec:/srv/pot/anima/config/secrets/gcp_credential.json
+      - {{ KEYS_DIR }}/pot-stag2-gcp-anima-be1:/srv/pot/anima/config/secrets/db_credential.json
+      - {{ KEYS_DIR }}/gcp-stag-pot-anima-restapi-secret:/srv/pot/anima/config/secrets/backend_apikey.json
+    {% elif ENVIRONMENT == "DEV" %}
+    volumes:
+      - {{ KEYS_DIR }}/pot-{{ ENVIRONMENT.lower() }}2-imana-be1_gcp-pot:/srv/pot/imana/config/secrets/gcp_credential.json
+      - {{ KEYS_DIR }}/pot-{{ ENVIRONMENT.lower() }}2-imana-be1_pot-{{ ENVIRONMENT.lower() }}2-vpc1-use1-pgsql1:/srv/pot/imana/config/secrets/db_credential.json
+      - {{ KEYS_DIR }}/gcp-{{ ENVIRONMENT.lower() }}2-pot-anima-restapi-secret:/srv/pot/imana/config/secrets/backend_apikey.json
+    {% endif %}
+    environment:
+      APP_ENV: {{ ENVIRONMENT }}
+      PLANT_CODE: {{ PLANT_CODE }}
+      ALLOWED_HOSTS: "*"
+      {% if ENVIRONMENT == "STAG" or ENVIRONMENT == "PROD" %}
+      GOOGLE_APPLICATION_CREDENTIALS: /srv/pot/anima/config/secrets/gcp_credential.json
+      {% elif ENVIRONMENT == "DEV" %}
+      GOOGLE_APPLICATION_CREDENTIALS: /srv/pot/imana/config/secrets/gcp_credential.json
+      {% endif %}
+    networks:
+      - anima_network
+networks:
+  anima_network:
+    name: anima_network
