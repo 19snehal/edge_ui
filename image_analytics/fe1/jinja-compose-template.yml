@@ -1,0 +1,21 @@
+version: "3.3"
+services:
+  {{ APPLICATION_SERVICE_NAME }}:
+    {% if ENVIRONMENT == "DEV" %}
+    image: europe-west1-docker.pkg.dev/pot-test-environment/pot-imana-dok/potimanafe1:dev-dev-pot-imana-first_0.0.52_2859d66
+    {% elif ENVIRONMENT == "STAG" %}
+    image: europe-west1-docker.pkg.dev/pot-test-environment/pot-anima-dok/potanimafe1:dev-MF20240521_0.0.522_6969164
+    {% elif ENVIRONMENT == "PROD" %}
+    image: europe-west1-docker.pkg.dev/plants-of-tomorrow-poc/pot-anima-dok/potanimafe1:main_0.0.536_e9678ab
+    {% endif %}
+    container_name: {{ APPLICATION_SERVICE_NAME }}
+    labels:
+      PLANT_CODE: {{ PLANT_CODE }}
+    restart: always
+    ports:
+      - 80:80
+    networks:
+      - anima_network
+networks:
+  anima_network:
+    name: anima_network
