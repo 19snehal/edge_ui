@@ -1,0 +1,189 @@
+from __future__ import annotations
+import time
+import logging
+import traceback
+import os
+import gi
+gi.require_version("Gst", "1.0")
+gi.require_version("GstApp", "1.0")
+from gi.repository import GLib, Gst, GstApp  # noqa: F401
+import PIL.Image
+import numpy as np
+
+# Initialize GStreamer
+Gst.init(None)
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class BasePipeline:
+    def __init__(self):
+        raise NotImplementedError()
+
+    def run(self):
+        raise NotImplementedError()
+
+    def stop(self):
+        raise NotImplementedError()
+
+class GstreamerPipeline(BasePipeline):
+    def __init__(self):
+        """Create a GStreamer pipeline from a pipeline string with hardcoded local values."""
+        self.output_folder = "/home/jeet/Desktop/holcim/output"
+        os.makedirs(self.output_folder, exist_ok=True)
+
+        # Define GStreamer pipeline string (rotation filter removed for testing)
+        self.pipeline_string = """rtspsrc name=source protocols=tcp ! rtph264depay name=depay ! h264parse ! avdec_h264 ! videoconvert ! videoscale ! capsfilter name=resolution ! videocrop name=roi ! videoconvert ! video/x-raw,format=RGB ! videorate ! capsfilter name=fps ! appsink sync=false name=appsink emit-signals=true"""
+        self.pipeline = None
+        self.frame_count = 0
+        self.exit_flag = False
+
+    def run(self):
+        try:
+            while not self.exit_flag:
+                logger.info("Starting pipeline...")
+                self.pipeline, loop = self.create_pipeline()
+                
+                # Start the pipeline
+                self.pipeline.set_state(Gst.State.PLAYING)
+                loop.run()
+
+                # Stop the pipeline gracefully
+                self.pipeline.set_state(Gst.State.NULL)
+
+                if self.exit_flag:
+                    break
+                logger.info("Retrying in 10 seconds...")
+                time.sleep(10)
+        except Exception as e:
+            logger.error(f"Exception in pipeline: {e}")
+            traceback.print_exc()
+        finally:
+            logger.info("Exiting pipeline ...")
+            self.cleanup()
+
+    def create_pipeline(self):
+        """Create and configure the GStreamer pipeline."""
+        pipeline = Gst.parse_launch(self.pipeline_string)
+        
+        # Configure RTSP source
+        source = pipeline.get_by_name("source")
+        if source is not None:
+            source.props.location = "rtsp://0.0.0.0:8554/rock_sandbox_stream"
+            logger.info(f"Reading video stream from source {source.props.location}")
+
+        # Configure resolution
+        resolution = pipeline.get_by_name("resolution")
+        if resolution is not None:
+            resolution.props.caps = Gst.Caps.from_string("video/x-raw,width=1280,height=720")
+            logger.info("Setting resolution to 1280x720")
+
+        # Configure FPS
+        fps = pipeline.get_by_name("fps")
+        if fps is not None:
+            fps.props.caps = Gst.Caps.from_string("video/x-raw,framerate=1/60")
+            logger.info("Setting framerate to 120 FPS")
+
+        # Configure Region of Interest (ROI)
+        region_of_interest = pipeline.get_by_name("roi")
+        if region_of_interest is not None:
+            region_of_interest.props.top = 50
+            region_of_interest.props.bottom = 50
+            region_of_interest.props.left = 50
+            region_of_interest.props.right = 50
+            logger.info("Setting ROI: top=50, bottom=50, left=50, right=50")
+
+        # Connect appsink for handling frames
+        appsink = pipeline.get_by_name("appsink")
+        if appsink is not None:
+            appsink.connect("new-sample", self.appsink_handler)
+            logger.info("Appsink connected for new-sample event")
+
+        # Set up message bus for handling errors and EOS
+        loop = GLib.MainLoop()
+        bus = pipeline.get_bus()
+        bus.add_signal_watch()
+        bus.connect("message", self.on_bus_message, loop)
+
+        return pipeline, loop
+
+    def stop(self):
+        """Send an event to stop the GStreamer pipeline."""
+        self.exit_flag = True
+        if self.pipeline is not None:
+            structure = Gst.Structure.new_empty("stop_streaming")
+            message = Gst.Message.new_application(None, structure)
+            self.pipeline.get_bus().post(message)
+
+    def on_bus_message(self, bus: Gst.Bus, message: Gst.Message, loop: GLib.MainLoop):
+        t = message.type
+        if t == Gst.MessageType.EOS:
+            logger.info("End of stream. Restarting...")
+            loop.quit()
+        elif t == Gst.MessageType.APPLICATION:
+            if message.get_structure().get_name() == "stop_streaming":
+                loop.quit()
+        elif t == Gst.MessageType.WARNING:
+            err, debug = message.parse_warning()
+            logger.warning(f"GStreamer warning: {err} - {debug}")
+            if "Connection timed out" in debug or "Frame dropped" in debug:
+                logger.warning("Lost frames due to network issues")
+                self.pipeline.set_state(Gst.State.NULL)
+                loop.quit()
+        elif t == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            logger.error(f"GStreamer error: {err} - {debug}")
+            if "Connection refused" in debug or "Could not read from resource." in debug:
+                logger.error("Network issue detected. Restarting pipeline...")
+                self.pipeline.set_state(Gst.State.NULL)
+                loop.quit()
+
+    def appsink_handler(self, app_sink):
+        # Get sample from appsink
+        sample = app_sink.pull_sample()
+        if sample is None:
+            logger.warning("Received empty sample.")
+            return Gst.FlowReturn.OK
+        
+        caps = sample.get_caps()
+        if caps is None:
+            logger.warning("Received sample with no caps.")
+            return Gst.FlowReturn.OK
+
+        # Extract width and height
+        width = caps.get_structure(0).get_value("width")
+        height = caps.get_structure(0).get_value("height")
+        buffer = sample.get_buffer()
+
+        # Log the caps and resolution
+        logger.info(f"Received frame with caps: {caps.to_string()}, resolution: {width}x{height}")
+
+        # Map the buffer and verify if it's valid
+        success, info = buffer.map(Gst.MapFlags.READ)
+        if not success or info.size == 0:
+            logger.warning("Received empty or invalid buffer.")
+            buffer.unmap(info)
+            return Gst.FlowReturn.OK
+
+        # Convert buffer to numpy array and process the image
+        frame = np.frombuffer(info.data, dtype=np.uint8)
+        frame = frame.reshape((height, -1))[:height, :(width * 3)]
+        frame = frame.reshape((height, width, 3))
+        buffer.unmap(info)
+
+        # Save the frame as a JPEG
+        timestamp = time.strftime("%Y%m%d%H%M%S", time.localtime())
+        filename = os.path.join(self.output_folder, f"frame_{timestamp}.jpeg")
+        PIL.Image.fromarray(frame).save(filename)
+        logger.info(f"Frame saved to {filename} at {time.strftime('%H:%M:%S', time.localtime())}")
+        return Gst.FlowReturn.OK
+
+    def cleanup(self):
+        """Cleanup resources."""
+        if self.pipeline is not None:
+            self.pipeline.set_state(Gst.State.NULL)
+
+if __name__ == "__main__":
+    gs_pipeline = GstreamerPipeline()
+    gs_pipeline.run()
